@@ -56,13 +56,15 @@ import net.spy.memcached.ops.VBucketAware;
 public class CouchbaseConnection extends MemcachedConnection  implements
   Reconfigurable {
 
+  protected volatile boolean reconfiguring = false;
+  private final CouchbaseConnectionFactory cf;
+
   public CouchbaseConnection(int bufSize, ConnectionFactory f,
       List<InetSocketAddress> a, Collection<ConnectionObserver> obs,
       FailureMode fm, OperationFactory opfactory) throws IOException {
     super(bufSize, f, a, obs, fm, opfactory);
   }
 
-  protected volatile boolean reconfiguring = false;
 
   public void reconfigure(Bucket bucket) {
     reconfiguring = true;
@@ -159,6 +161,7 @@ public class CouchbaseConnection extends MemcachedConnection  implements
         this.getLogger().warn(
             "Could not redistribute "
                 + "to another node, retrying primary node for %s.", key);
+        cf.checkConfigUpdate();
       }
     }
 
