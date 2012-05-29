@@ -343,7 +343,7 @@
     <if>
       <equals arg1="${err}" arg2="0"/>
       <then>
-        <var name="version" value="${result}"/>
+        <var name="version" value="${result}-mschoch"/>
       </then>
     </if>
     <exec executable="${script.src.dir}/write-version-info.sh"
