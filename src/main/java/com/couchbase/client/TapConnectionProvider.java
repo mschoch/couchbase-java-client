@@ -22,10 +22,6 @@
 
 package com.couchbase.client;
 
-import com.couchbase.client.vbucket.ConfigurationProvider;
-import com.couchbase.client.vbucket.Reconfigurable;
-import com.couchbase.client.vbucket.config.Bucket;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -34,63 +30,113 @@ import javax.naming.ConfigurationException;
 
 import net.spy.memcached.AddrUtil;
 import net.spy.memcached.ConnectionObserver;
+import net.spy.memcached.MemcachedNode;
+
+import com.couchbase.client.vbucket.ConfigurationProvider;
+import com.couchbase.client.vbucket.Reconfigurable;
+import com.couchbase.client.vbucket.config.Bucket;
+import com.couchbase.client.vbucket.config.Config;
+import com.couchbase.client.vbucket.config.ConfigDifference;
 
 /**
  * A TapConnectionProvider for Couchbase Server.
  */
-public class TapConnectionProvider
-  extends net.spy.memcached.TapConnectionProvider
-  implements Reconfigurable {
+public class TapConnectionProvider extends
+        net.spy.memcached.TapConnectionProvider implements Reconfigurable {
 
-  private final CouchbaseConnectionFactory cf;
-  private final ConfigurationProvider cp;
+    private final CouchbaseConnectionFactory cf;
+    private final ConfigurationProvider cp;
+    private Config bucketConfig;
+    private TapClient client;
 
-  /**
-   * Get a tap connection based on the REST response from a Couchbase server.
-   *
-   * @param baseList A list of URI's to use for getting cluster information.
-   * @param bucketName The name of the bucket to connect to.
-   * @param pwd The password for the bucket.
-   * @throws IOException
-   * @throws ConfigurationException
-   */
-  public TapConnectionProvider(final List<URI> baseList,
-      final String bucketName, final String pwd)
-    throws IOException, ConfigurationException {
-    this(new CouchbaseConnectionFactory(baseList, bucketName, pwd));
-  }
+    /**
+     * Get a tap connection based on the REST response from a Couchbase server.
+     *
+     * @param baseList
+     *            A list of URI's to use for getting cluster information.
+     * @param bucketName
+     *            The name of the bucket to connect to.
+     * @param pwd
+     *            The password for the bucket.
+     * @throws IOException
+     * @throws ConfigurationException
+     */
+    public TapConnectionProvider(final TapClient client,
+            final List<URI> baseList, final String bucketName, final String pwd)
+            throws IOException, ConfigurationException {
+        this(new CouchbaseConnectionFactory(baseList, bucketName, pwd));
+        this.client = client;
+    }
 
-  /**
-   * Get a tap connection based on the REST response from a Couchbase server.
-   *
-   * @param cf A connection factory to create the tap stream with
-   * @throws IOException
-   * @throws ConfigurationException
-   */
-  public TapConnectionProvider(CouchbaseConnectionFactory cf)
-    throws IOException, ConfigurationException{
-    super(cf, AddrUtil.getAddresses(cf.getVBucketConfig().getServers()));
-    this.cf=cf;
-    cp = cf.getConfigurationProvider();
-    cp.subscribe(cf.getBucketName(), this);
-  }
+    public TapConnectionProvider(final List<URI> baseList,
+            final String bucketName, final String pwd) throws IOException,
+            ConfigurationException {
+        this(new CouchbaseConnectionFactory(baseList, bucketName, pwd));
+        this.client = null;
+    }
 
-  /**
-   * Remove a connection observer.
-   *
-   * @param obs the ConnectionObserver you wish to add
-   * @return true if the observer existed, but no longer does
-   */
-  public boolean removeObserver(ConnectionObserver obs) {
-    return conn.removeObserver(obs);
-  }
+    /**
+     * Get a tap connection based on the REST response from a Couchbase server.
+     *
+     * @param cf
+     *            A connection factory to create the tap stream with
+     * @throws IOException
+     * @throws ConfigurationException
+     */
+    public TapConnectionProvider(CouchbaseConnectionFactory cf)
+            throws IOException, ConfigurationException {
+        super(cf, AddrUtil.getAddresses(cf.getVBucketConfig().getServers()));
+        this.cf = cf;
+        cp = cf.getConfigurationProvider();
+        bucketConfig = cf.getVBucketConfig();
+        cp.subscribe(cf.getBucketName(), this);
+    }
 
-  public void reconfigure(Bucket bucket) {
-    ((CouchbaseConnection)conn).reconfigure(bucket);
-  }
+    /**
+     * Remove a connection observer.
+     *
+     * @param obs
+     *            the ConnectionObserver you wish to add
+     * @return true if the observer existed, but no longer does
+     */
+    public boolean removeObserver(ConnectionObserver obs) {
+        return conn.removeObserver(obs);
+    }
 
-  public void shutdown() {
-    super.shutdown();
-    cf.getConfigurationProvider().shutdown();
-  }
+    public void reconfigure(Bucket bucket) {
+
+        ((CouchbaseConnection)conn).reconfigure(bucket);
+
+        // if this is not the initial configuration
+        // and if there are actual vbucket changes
+        // then reconfigure the client
+        Config newConfig = bucket.getConfig();
+        if(bucketConfig != null) {
+            ConfigDifference diff = bucketConfig.compareTo(newConfig);
+
+            if(diff.getVbucketsChanges() > 0) {
+                if(client != null) {
+                    System.out.println("Trying to reconfigure client");
+                  client.reconfigure(bucket);
+                }
+            }
+        }
+        bucketConfig = newConfig;
+    }
+
+    public List<Integer> getVBucketsForNode(MemcachedNode node) {
+
+        int serverIndex = bucketConfig.getServerIndex(node);
+        return bucketConfig.getMasterVbucketsByServer(serverIndex);
+
+    }
+
+    public void shutdown() {
+        super.shutdown();
+        cf.getConfigurationProvider().shutdown();
+    }
+
+    public String getName() {
+        return conn.getName();
+    }
 }

@@ -26,6 +26,7 @@ import java.net.URL;
 import java.util.List;
 
 import net.spy.memcached.HashAlgorithm;
+import net.spy.memcached.MemcachedNode;
 
 /**
  * A Config.
@@ -43,6 +44,10 @@ public interface Config {
   HashAlgorithm getHashAlgorithm();
 
   String getServer(int serverIndex);
+
+  List<Integer> getMasterVbucketsByServer(int serverIndex);
+
+  int getServerIndex(MemcachedNode node);
 
   // VBucket access
 

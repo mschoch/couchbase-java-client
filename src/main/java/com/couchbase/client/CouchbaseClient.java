@@ -40,6 +40,7 @@ import com.couchbase.client.protocol.views.ViewsFetcherOperation;
 import com.couchbase.client.protocol.views.ViewsFetcherOperationImpl;
 import com.couchbase.client.vbucket.Reconfigurable;
 import com.couchbase.client.vbucket.config.Bucket;
+import com.couchbase.client.vbucket.config.Config;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -793,6 +794,10 @@ public class CouchbaseClient extends MemcachedClient
       throw new RuntimeException(null, ex);
     }
     return shutdownResult;
+  }
+
+  public Config getVBucketConfig() {
+    return ((CouchbaseConnectionFactory)connFactory).getVBucketConfig();
   }
 
 }

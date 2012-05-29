@@ -27,6 +27,7 @@ import java.util.List;
 
 import net.spy.memcached.DefaultHashAlgorithm;
 import net.spy.memcached.HashAlgorithm;
+import net.spy.memcached.MemcachedNode;
 
 /**
  * A CacheConfig.
@@ -82,6 +83,16 @@ public class CacheConfig implements Config {
 
   public int foundIncorrectMaster(int vbucket, int wrongServer) {
     throw new IllegalArgumentException("TODO: refactor this");
+  }
+
+  @Override
+  public List<Integer> getMasterVbucketsByServer(int serverIndex) {
+      throw new IllegalArgumentException("TODO: refactor this");
+  }
+
+  @Override
+  public int getServerIndex(MemcachedNode node) {
+      throw new IllegalArgumentException("TODO: refactor this");
   }
 
   public void setServers(List<String> newServers) {

@@ -22,10 +22,14 @@
 
 package com.couchbase.client.vbucket.config;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 import net.spy.memcached.HashAlgorithm;
+import net.spy.memcached.MemcachedNode;
 
 /**
  * A DefaultConfig.
@@ -79,6 +83,43 @@ public class DefaultConfig implements Config {
   @Override
   public String getServer(int serverIndex) {
     return servers.get(serverIndex);
+  }
+
+  @Override
+  public List<Integer> getMasterVbucketsByServer(int serverIndex) {
+      List<Integer> result = new ArrayList<Integer>();
+      int vbucketId = 0;
+      for (VBucket vbucket : vbuckets) {
+          if(vbucket.getMaster() == serverIndex) {
+              result.add(vbucketId);
+          }
+          vbucketId++;
+      }
+      return result;
+  }
+
+  @Override
+  public int getServerIndex(MemcachedNode node) {
+      int result = -1;
+      SocketAddress nodeAddress = node.getSocketAddress();
+      int serverIndex = 0;
+      for(String server : servers) {
+          if (server.contains(":")) {
+              int index = server.indexOf(":");
+              String host = server.substring(0, index);
+              int port = Integer
+                      .parseInt(server.substring(index + 1));
+              InetSocketAddress address = new InetSocketAddress(host,
+                      port);
+
+              if(address.equals(nodeAddress)) {
+                  result = serverIndex;
+                  break;
+              }
+          }
+          serverIndex++;
+      }
+      return result;
   }
 
   @Override
